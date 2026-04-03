@@ -120,6 +120,7 @@ const COLORS = [
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [view, setView] = useState<'notes' | 'calendar' | 'todo' | 'archive' | 'trash' | UPSCView>('notes');
   const [searchQuery, setSearchQuery] = useState('');
@@ -156,10 +157,18 @@ export default function App() {
   }, [user]);
 
   const handleLogin = async () => {
+    setLoginError(null);
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login failed:', error);
+      if (error.code === 'auth/unauthorized-domain') {
+        setLoginError(`Domain not authorized. Please add "${window.location.hostname}" to your Firebase Console > Auth > Settings > Authorized Domains.`);
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        setLoginError('Sign-in popup was closed before completion.');
+      } else {
+        setLoginError(error.message || 'An unexpected error occurred during sign-in.');
+      }
     }
   };
 
@@ -221,6 +230,18 @@ export default function App() {
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="h-5 w-5" alt="Google" />
             <span className="font-medium">Sign in with Google</span>
           </button>
+
+          {loginError && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl max-w-md"
+            >
+              <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                {loginError}
+              </p>
+            </motion.div>
+          )}
         </motion.div>
       </div>
     );
@@ -231,7 +252,11 @@ export default function App() {
       <Sidebar 
         isOpen={isSidebarOpen} 
         view={view} 
-        setView={setView} 
+        setView={(v) => {
+          setView(v);
+          if (window.innerWidth < 768) setIsSidebarOpen(false);
+        }} 
+        onClose={() => setIsSidebarOpen(false)}
       />
 
       <div className="flex-1 flex flex-col min-w-0 relative">
@@ -246,12 +271,12 @@ export default function App() {
           handleLogout={handleLogout}
         />
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="max-w-6xl mx-auto space-y-8">
+        <main className="flex-1 overflow-y-auto p-3 md:p-8">
+          <div className="max-w-6xl mx-auto space-y-6 md:space-y-8">
             {view === 'notes' && <NoteCreator user={user} />}
             
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-zinc-800 dark:text-zinc-200">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-xl md:text-2xl font-bold text-zinc-800 dark:text-zinc-200">
                 {view === 'notes' ? 'All Notes' : view}
               </h2>
             </div>
@@ -281,7 +306,7 @@ export default function App() {
   );
 }
 
-function Sidebar({ isOpen, view, setView }: { isOpen: boolean, view: string, setView: (v: any) => void }) {
+function Sidebar({ isOpen, view, setView, onClose }: { isOpen: boolean, view: string, setView: (v: any) => void, onClose: () => void }) {
   const mainItems = [
     { id: 'notes', icon: Lightbulb, label: 'Notes' },
     { id: 'todo', icon: CheckSquare, label: 'To-do' },
@@ -315,7 +340,7 @@ function Sidebar({ isOpen, view, setView }: { isOpen: boolean, view: string, set
       )}
     >
       <item.icon className={cn("h-5 w-5 shrink-0", view === item.id ? "text-yellow-600 dark:text-yellow-400" : "")} />
-      {isOpen && (
+      {(isOpen || window.innerWidth < 768) && (
         <span className="ml-6 font-medium whitespace-nowrap overflow-hidden text-sm">
           {item.label}
         </span>
@@ -327,27 +352,57 @@ function Sidebar({ isOpen, view, setView }: { isOpen: boolean, view: string, set
   );
 
   return (
-    <motion.div 
-      initial={false}
-      animate={{ width: isOpen ? 280 : 80 }}
-      className="hidden md:flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 z-20"
-    >
-      <div className="flex-1 py-4 overflow-y-auto custom-scrollbar">
-        <div className="space-y-1">
-          {mainItems.map(renderItem)}
-        </div>
-        
-        {isOpen && <div className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4">UPSC Papers</div>}
-        <div className="space-y-1">
-          {upscItems.map(renderItem)}
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      <motion.div 
+        initial={false}
+        animate={{ 
+          width: isOpen ? 280 : (window.innerWidth < 768 ? 0 : 80),
+          x: isOpen ? 0 : (window.innerWidth < 768 ? -280 : 0)
+        }}
+        className={cn(
+          "fixed md:relative inset-y-0 left-0 flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 z-50 transition-all",
+          !isOpen && "md:w-20"
+        )}
+      >
+        <div className="flex items-center justify-between p-4 md:hidden">
+          <div className="flex items-center space-x-2">
+            <Lightbulb className="h-8 w-8 text-yellow-500" />
+            <span className="text-xl font-semibold">KeepPro UPSC</span>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-full">
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
-        {isOpen && <div className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4">System</div>}
-        <div className="space-y-1">
-          {systemItems.map(renderItem)}
+        <div className="flex-1 py-4 overflow-y-auto custom-scrollbar">
+          <div className="space-y-1">
+            {mainItems.map(renderItem)}
+          </div>
+          
+          {(isOpen || window.innerWidth < 768) && <div className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4">UPSC Papers</div>}
+          <div className="space-y-1">
+            {upscItems.map(renderItem)}
+          </div>
+
+          {(isOpen || window.innerWidth < 768) && <div className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4">System</div>}
+          <div className="space-y-1">
+            {systemItems.map(renderItem)}
+          </div>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
+    </>
   );
 }
 
@@ -369,15 +424,15 @@ function Header({ user, isSidebarOpen, setIsSidebarOpen, searchQuery, setSearchQ
         </div>
       </div>
 
-      <div className="flex-1 max-w-2xl mx-4">
+      <div className="flex-1 max-w-2xl mx-2 md:mx-4">
         <div className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400 group-focus-within:text-zinc-600 dark:group-focus-within:text-zinc-300 transition-colors" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-zinc-400 group-focus-within:text-zinc-600 dark:group-focus-within:text-zinc-300 transition-colors" />
           <input 
             type="text"
-            placeholder="Search notes, subjects, or topics"
+            placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-zinc-100 dark:bg-zinc-900 border-none rounded-lg py-2.5 pl-12 pr-4 focus:ring-2 focus:ring-yellow-500/50 focus:bg-white dark:focus:bg-zinc-800 transition-all outline-none"
+            className="w-full bg-zinc-100 dark:bg-zinc-900 border-none rounded-lg py-2 pl-9 md:pl-12 pr-4 focus:ring-2 focus:ring-yellow-500/50 focus:bg-white dark:focus:bg-zinc-800 transition-all outline-none text-sm md:text-base"
           />
         </div>
       </div>
