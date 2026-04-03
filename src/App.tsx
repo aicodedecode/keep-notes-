@@ -261,6 +261,7 @@ export default function App() {
         }} 
         onClose={() => setIsSidebarOpen(false)}
         appMode={appMode}
+        setAppMode={setAppMode}
       />
 
       <div className="flex-1 flex flex-col min-w-0 relative">
@@ -312,7 +313,7 @@ export default function App() {
   );
 }
 
-function Sidebar({ isOpen, view, setView, onClose, appMode }: { isOpen: boolean, view: string, setView: (v: any) => void, onClose: () => void, appMode: AppMode }) {
+function Sidebar({ isOpen, view, setView, onClose, appMode, setAppMode }: { isOpen: boolean, view: string, setView: (v: any) => void, onClose: () => void, appMode: AppMode, setAppMode: (m: AppMode) => void }) {
   const mainItems = [
     { id: 'notes', icon: Lightbulb, label: 'Notes' },
     { id: 'todo', icon: CheckSquare, label: 'To-do' },
@@ -393,6 +394,29 @@ function Sidebar({ isOpen, view, setView, onClose, appMode }: { isOpen: boolean,
         </div>
 
         <div className="flex-1 py-4 overflow-y-auto custom-scrollbar">
+          <div className="px-4 mb-6 md:hidden">
+            <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 p-1 rounded-lg border border-zinc-200 dark:border-zinc-800">
+              <button 
+                onClick={() => setAppMode('general')}
+                className={cn(
+                  "flex-1 px-3 py-2 text-xs font-bold rounded-md transition-all",
+                  appMode === 'general' ? "bg-white dark:bg-zinc-800 shadow-sm text-yellow-600" : "text-zinc-500"
+                )}
+              >
+                General
+              </button>
+              <button 
+                onClick={() => setAppMode('upsc')}
+                className={cn(
+                  "flex-1 px-3 py-2 text-xs font-bold rounded-md transition-all",
+                  appMode === 'upsc' ? "bg-white dark:bg-zinc-800 shadow-sm text-yellow-600" : "text-zinc-500"
+                )}
+              >
+                UPSC
+              </button>
+            </div>
+          </div>
+
           <div className="space-y-1">
             {mainItems.map(renderItem)}
           </div>
@@ -434,25 +458,25 @@ function Header({ user, isSidebarOpen, setIsSidebarOpen, searchQuery, setSearchQ
         </div>
       </div>
 
-      <div className="flex-1 max-w-2xl mx-2 md:mx-4">
+      <div className="flex-1 max-w-2xl mx-1 md:mx-4">
         <div className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-zinc-400 group-focus-within:text-zinc-600 dark:group-focus-within:text-zinc-300 transition-colors" />
+          <Search className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 md:h-5 md:w-5 text-zinc-400 group-focus-within:text-zinc-600 dark:group-focus-within:text-zinc-300 transition-colors" />
           <input 
             type="text"
             placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-zinc-100 dark:bg-zinc-900 border-none rounded-lg py-2 pl-9 md:pl-12 pr-4 focus:ring-2 focus:ring-yellow-500/50 focus:bg-white dark:focus:bg-zinc-800 transition-all outline-none text-sm md:text-base"
+            className="w-full bg-zinc-100 dark:bg-zinc-900 border-none rounded-lg py-1.5 md:py-2 pl-7 md:pl-12 pr-3 md:pr-4 focus:ring-2 focus:ring-yellow-500/50 focus:bg-white dark:focus:bg-zinc-800 transition-all outline-none text-xs md:text-base"
           />
         </div>
       </div>
 
       <div className="flex items-center space-x-1 md:space-x-2 shrink-0">
-        <div className="hidden sm:flex items-center bg-zinc-100 dark:bg-zinc-900 p-1 rounded-lg border border-zinc-200 dark:border-zinc-800 mr-2">
+        <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 p-1 rounded-lg border border-zinc-200 dark:border-zinc-800 mr-1 md:mr-2">
           <button 
             onClick={() => setAppMode('general')}
             className={cn(
-              "px-3 py-1 text-xs font-bold rounded-md transition-all",
+              "px-2 md:px-3 py-1 text-[10px] md:text-xs font-bold rounded-md transition-all",
               appMode === 'general' ? "bg-white dark:bg-zinc-800 shadow-sm text-yellow-600" : "text-zinc-500"
             )}
           >
@@ -461,7 +485,7 @@ function Header({ user, isSidebarOpen, setIsSidebarOpen, searchQuery, setSearchQ
           <button 
             onClick={() => setAppMode('upsc')}
             className={cn(
-              "px-3 py-1 text-xs font-bold rounded-md transition-all",
+              "px-2 md:px-3 py-1 text-[10px] md:text-xs font-bold rounded-md transition-all",
               appMode === 'upsc' ? "bg-white dark:bg-zinc-800 shadow-sm text-yellow-600" : "text-zinc-500"
             )}
           >
@@ -1248,23 +1272,23 @@ function CalendarView({ notes, onNoteClick }: { notes: Note[], onNoteClick: (not
                 key={i}
                 onClick={() => setSelectedDay(day)}
                 className={cn(
-                  "min-h-[100px] md:min-h-[120px] p-2 border-r border-b border-zinc-100 dark:border-zinc-800 transition-all cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/50",
+                  "min-h-[70px] md:min-h-[120px] p-1 md:p-2 border-r border-b border-zinc-100 dark:border-zinc-800 transition-all cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/50",
                   !isCurrentMonth && "bg-zinc-50/50 dark:bg-zinc-950/50 opacity-40",
                   isSelected && "bg-yellow-50/50 dark:bg-yellow-900/10 ring-2 ring-inset ring-yellow-500/50 z-10"
                 )}
               >
-                <div className="flex justify-between items-start mb-2">
+                <div className="flex justify-between items-start mb-1 md:mb-2">
                   <span className={cn(
-                    "h-7 w-7 flex items-center justify-center rounded-full text-sm font-bold",
+                    "h-6 w-6 md:h-7 md:w-7 flex items-center justify-center rounded-full text-xs md:text-sm font-bold",
                     isTodayDay ? "bg-yellow-500 text-white" : "text-zinc-700 dark:text-zinc-300"
                   )}>
                     {format(day, 'd')}
                   </span>
                   {dayNotes.length > 0 && (
-                    <span className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
+                    <span className="h-1.5 w-1.5 md:h-2 md:w-2 rounded-full bg-yellow-500 animate-pulse" />
                   )}
                 </div>
-                <div className="space-y-1">
+                <div className="hidden md:block space-y-1">
                   {dayNotes.slice(0, 2).map(note => (
                     <div 
                       key={note.id}
@@ -1278,6 +1302,16 @@ function CalendarView({ notes, onNoteClick }: { notes: Note[], onNoteClick: (not
                   ))}
                   {dayNotes.length > 2 && (
                     <div className="text-[10px] text-zinc-400 font-bold pl-1">+{dayNotes.length - 2} more</div>
+                  )}
+                </div>
+                {/* Mobile indicator for notes */}
+                <div className="md:hidden flex justify-center mt-1">
+                  {dayNotes.length > 0 && (
+                    <div className="flex -space-x-1">
+                      {dayNotes.slice(0, 3).map((note, idx) => (
+                        <div key={idx} className={cn("h-1.5 w-1.5 rounded-full border border-white dark:border-zinc-900", note.color || "bg-zinc-400")} />
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
