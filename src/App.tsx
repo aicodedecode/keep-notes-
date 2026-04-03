@@ -869,7 +869,7 @@ function NoteCard({ note, onClick }: { note: Note, onClick: () => void }) {
           onClick={(e) => handleAction(e, 'pin')}
           className={cn(
             "p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-opacity",
-            note.isPinned ? "opacity-100 text-yellow-600" : "opacity-0 group-hover:opacity-100 text-zinc-400"
+            note.isPinned ? "opacity-100 text-yellow-600" : "opacity-100 md:opacity-0 md:group-hover:opacity-100 text-zinc-400"
           )}
         >
           <Pin className={cn("h-4 w-4", note.isPinned && "fill-current")} />
@@ -916,7 +916,7 @@ function NoteCard({ note, onClick }: { note: Note, onClick: () => void }) {
         </div>
       </div>
 
-      <div className="flex items-center justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center justify-end space-x-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
         {isDeleting ? (
           <div className="flex items-center bg-red-50 dark:bg-red-900/20 rounded-lg px-2 py-1 animate-in fade-in slide-in-from-right-2">
             <span className="text-[10px] font-bold text-red-600 dark:text-red-400 mr-2 uppercase">Permanently?</span>
