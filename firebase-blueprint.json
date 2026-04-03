@@ -1,0 +1,66 @@
+{
+  "entities": {
+    "Note": {
+      "title": "Note",
+      "description": "A note or task item in the Keep clone with UPSC enhancements.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the owner." },
+        "title": { "type": "string", "description": "The title of the note." },
+        "content": { "type": "string", "description": "The content or body of the note." },
+        "color": { "type": "string", "description": "The background color of the note." },
+        "isPinned": { "type": "boolean", "description": "Whether the note is pinned." },
+        "isArchived": { "type": "boolean", "description": "Whether the note is archived." },
+        "isTrashed": { "type": "boolean", "description": "Whether the note is in the trash." },
+        "type": { "type": "string", "enum": ["note", "todo", "event"], "description": "The type of item." },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": { "type": "string" },
+              "completed": { "type": "boolean" }
+            }
+          },
+          "description": "List of tasks for todo type."
+        },
+        "dueDate": { "type": "string", "format": "date-time", "description": "Optional due date or event date." },
+        "upscData": {
+          "type": "object",
+          "properties": {
+            "paper": { "type": "string", "enum": ["GS1", "GS2", "GS3", "GS4", "Optional", "Essay", "Prelims"] },
+            "subject": { "type": "string" },
+            "topic": { "type": "string" },
+            "isImportant": { "type": "boolean" },
+            "lastRevised": { "type": "string", "format": "date-time" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "type", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Basic user information.",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "lastLogin": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email"]
+    }
+  },
+  "firestore": {
+    "/notes/{noteId}": {
+      "schema": "Note",
+      "description": "Collection of all notes and tasks."
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile information."
+    }
+  }
+}

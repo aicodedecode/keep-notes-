@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function isValidNote(data) {
+      return data.userId == request.auth.uid &&
+             data.title is string && data.title.size() <= 500 &&
+             data.type in ['note', 'todo', 'event'] &&
+             (!('content' in data) || (data.content is string && data.content.size() <= 10000)) &&
+             (!('color' in data) || (data.color is string && data.color.size() <= 50)) &&
+             (!('isPinned' in data) || data.isPinned is bool) &&
+             (!('isArchived' in data) || data.isArchived is bool) &&
+             (!('isTrashed' in data) || data.isTrashed is bool) &&
+             (!('upscData' in data) || data.upscData is map);
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+    }
+
+    match /notes/{noteId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidNote(request.resource.data);
+      allow update: if isDocOwner() && isValidNote(request.resource.data);
+      allow delete: if isDocOwner();
+    }
+  }
+}
