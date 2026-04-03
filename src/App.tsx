@@ -18,10 +18,16 @@ import {
   Pin, 
   Palette, 
   X, 
+  Check,
+  Trash,
   ChevronLeft, 
   ChevronRight,
   LogOut,
-  History
+  History,
+  Tag,
+  Settings,
+  Clock,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactQuill from 'react-quill-new';
@@ -79,23 +85,29 @@ interface Note {
   type: NoteType;
   tasks?: TodoItem[];
   dueDate?: Timestamp | null;
+  labels?: string[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
 const COLORS = [
   { name: 'Default', value: 'bg-white dark:bg-zinc-900' },
-  { name: 'Red', value: 'bg-red-100 dark:bg-red-900/30' },
-  { name: 'Orange', value: 'bg-orange-100 dark:bg-orange-900/30' },
-  { name: 'Yellow', value: 'bg-yellow-100 dark:bg-yellow-900/30' },
-  { name: 'Green', value: 'bg-green-100 dark:bg-green-900/30' },
-  { name: 'Teal', value: 'bg-teal-100 dark:bg-teal-900/30' },
-  { name: 'Blue', value: 'bg-blue-100 dark:bg-blue-900/30' },
-  { name: 'Dark Blue', value: 'bg-indigo-100 dark:bg-indigo-900/30' },
-  { name: 'Purple', value: 'bg-purple-100 dark:bg-purple-900/30' },
-  { name: 'Pink', value: 'bg-pink-100 dark:bg-pink-900/30' },
-  { name: 'Brown', value: 'bg-amber-100 dark:bg-amber-900/30' },
-  { name: 'Grey', value: 'bg-gray-100 dark:bg-gray-800/30' },
+  { name: 'Red', value: 'bg-red-50/80 dark:bg-red-900/20 border-red-200 dark:border-red-800' },
+  { name: 'Orange', value: 'bg-orange-50/80 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800' },
+  { name: 'Yellow', value: 'bg-yellow-50/80 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800' },
+  { name: 'Green', value: 'bg-green-50/80 dark:bg-green-900/20 border-green-200 dark:border-green-800' },
+  { name: 'Teal', value: 'bg-teal-50/80 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800' },
+  { name: 'Blue', value: 'bg-blue-50/80 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' },
+  { name: 'Indigo', value: 'bg-indigo-50/80 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800' },
+  { name: 'Purple', value: 'bg-purple-50/80 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800' },
+  { name: 'Pink', value: 'bg-pink-50/80 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800' },
+  { name: 'Brown', value: 'bg-amber-50/80 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' },
+  { name: 'Grey', value: 'bg-gray-50/80 dark:bg-gray-800/20 border-gray-200 dark:border-gray-700' },
+  // Premium Gradients
+  { name: 'Sunset', value: 'bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 border-orange-200 dark:border-red-800' },
+  { name: 'Ocean', value: 'bg-gradient-to-br from-blue-50 to-teal-50 dark:from-blue-900/20 dark:to-teal-900/20 border-blue-200 dark:border-teal-800' },
+  { name: 'Lavender', value: 'bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-pink-800' },
+  { name: 'Forest', value: 'bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-emerald-800' },
 ];
 
 export default function App() {
@@ -103,11 +115,26 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
-  const [view, setView] = useState<'notes' | 'calendar' | 'todo' | 'archive' | 'trash'>('notes');
+  const [view, setView] = useState<'notes' | 'calendar' | 'todo' | 'archive' | 'trash' | 'stats'>('notes');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isListView, setIsListView] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
+    return (localStorage.getItem('theme') as any) || 'system';
+  });
+
+  // Theme effect
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'system') {
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      root.classList.toggle('dark', systemTheme === 'dark');
+    } else {
+      root.classList.toggle('dark', theme === 'dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   // Auth Listener
   useEffect(() => {
@@ -158,13 +185,18 @@ export default function App() {
   const filteredNotes = useMemo(() => {
     return notes.filter(note => {
       const matchesSearch = (note.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
-                           (note.content || '').toLowerCase().includes(searchQuery.toLowerCase());
+                           (note.content || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           note.labels?.some(l => l.toLowerCase().includes(searchQuery.toLowerCase()));
       
       if (view === 'notes') return !note.isArchived && !note.isTrashed && matchesSearch;
       if (view === 'archive') return note.isArchived && !note.isTrashed && matchesSearch;
       if (view === 'trash') return note.isTrashed && matchesSearch;
       if (view === 'todo') return note.type === 'todo' && !note.isTrashed && matchesSearch;
       if (view === 'calendar') return note.dueDate && !note.isTrashed && matchesSearch;
+      if (view.startsWith('label:')) {
+        const label = view.split(':')[1];
+        return note.labels?.includes(label) && !note.isTrashed && matchesSearch;
+      }
       
       return matchesSearch;
     });
@@ -231,6 +263,7 @@ export default function App() {
           if (window.innerWidth < 768) setIsSidebarOpen(false);
         }} 
         onClose={() => setIsSidebarOpen(false)}
+        notes={notes}
       />
 
       <div className="flex-1 flex flex-col min-w-0 relative">
@@ -243,20 +276,36 @@ export default function App() {
           isListView={isListView}
           setIsListView={setIsListView}
           handleLogout={handleLogout}
+          theme={theme}
+          setTheme={setTheme}
         />
 
         <main className="flex-1 overflow-y-auto p-3 md:p-8">
           <div className="max-w-6xl mx-auto space-y-6 md:space-y-8">
-            {view === 'notes' && <NoteCreator user={user} />}
+            {view === 'notes' && (
+              <div className="space-y-6">
+                <div className="px-1">
+                  <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+                    Welcome back, {user.displayName?.split(' ')[0]}!
+                  </h1>
+                  <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
+                    Here's what's happening with your notes today.
+                  </p>
+                </div>
+                <NoteCreator user={user} />
+              </div>
+            )}
             
             <div className="flex items-center justify-between px-1">
-              <h2 className="text-xl md:text-2xl font-bold text-zinc-800 dark:text-zinc-200">
-                {view === 'notes' ? 'All Notes' : view}
+              <h2 className="text-xl md:text-2xl font-bold text-zinc-800 dark:text-zinc-200 capitalize">
+                {view.startsWith('label:') ? `Label: ${view.split(':')[1]}` : (view === 'notes' ? 'All Notes' : view)}
               </h2>
             </div>
 
             {view === 'calendar' ? (
               <CalendarView notes={notes} onNoteClick={setSelectedNote} />
+            ) : view === 'stats' ? (
+              <StatsView notes={notes} />
             ) : (
               <NoteGrid 
                 notes={filteredNotes} 
@@ -280,7 +329,7 @@ export default function App() {
   );
 }
 
-function Sidebar({ isOpen, view, setView, onClose }: { isOpen: boolean, view: string, setView: (v: any) => void, onClose: () => void }) {
+function Sidebar({ isOpen, view, setView, onClose, notes }: { isOpen: boolean, view: string, setView: (v: any) => void, onClose: () => void, notes: Note[] }) {
   const mainItems = [
     { id: 'notes', icon: Lightbulb, label: 'Notes' },
     { id: 'todo', icon: CheckSquare, label: 'To-do' },
@@ -290,7 +339,16 @@ function Sidebar({ isOpen, view, setView, onClose }: { isOpen: boolean, view: st
   const systemItems = [
     { id: 'archive', icon: Archive, label: 'Archive' },
     { id: 'trash', icon: Trash2, label: 'Trash' },
+    { id: 'stats', icon: History, label: 'Statistics' },
   ];
+
+  const labels = useMemo(() => {
+    const allLabels = new Set<string>();
+    notes.forEach(note => {
+      note.labels?.forEach(label => allLabels.add(label));
+    });
+    return Array.from(allLabels).sort();
+  }, [notes]);
 
   const renderItem = (item: any) => (
     <button
@@ -355,6 +413,33 @@ function Sidebar({ isOpen, view, setView, onClose }: { isOpen: boolean, view: st
             {mainItems.map(renderItem)}
           </div>
           
+          {labels.length > 0 && (
+            <>
+              {(isOpen || window.innerWidth < 768) && <div className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4">Labels</div>}
+              <div className="space-y-1">
+                {labels.map(label => (
+                  <button
+                    key={label}
+                    onClick={() => setView(`label:${label}`)}
+                    className={cn(
+                      "flex items-center w-full px-6 py-2.5 transition-colors group relative",
+                      view === `label:${label}` 
+                        ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400" 
+                        : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                    )}
+                  >
+                    <Tag className={cn("h-5 w-5 shrink-0", view === `label:${label}` ? "text-yellow-600 dark:text-yellow-400" : "")} />
+                    {(isOpen || window.innerWidth < 768) && (
+                      <span className="ml-6 font-medium whitespace-nowrap overflow-hidden text-sm">
+                        {label}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          
           {(isOpen || window.innerWidth < 768) && <div className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4">System</div>}
           <div className="space-y-1">
             {systemItems.map(renderItem)}
@@ -365,7 +450,7 @@ function Sidebar({ isOpen, view, setView, onClose }: { isOpen: boolean, view: st
   );
 }
 
-function Header({ user, isSidebarOpen, setIsSidebarOpen, searchQuery, setSearchQuery, isListView, setIsListView, handleLogout }: any) {
+function Header({ user, isSidebarOpen, setIsSidebarOpen, searchQuery, setSearchQuery, isListView, setIsListView, handleLogout, theme, setTheme }: any) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   return (
@@ -388,7 +473,7 @@ function Header({ user, isSidebarOpen, setIsSidebarOpen, searchQuery, setSearchQ
           <Search className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 md:h-5 md:w-5 text-zinc-400 group-focus-within:text-zinc-600 dark:group-focus-within:text-zinc-300 transition-colors" />
           <input 
             type="text"
-            placeholder="Search..."
+            placeholder="Search notes, labels, or content..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-zinc-100 dark:bg-zinc-900 border-none rounded-lg py-1.5 md:py-2 pl-7 md:pl-12 pr-3 md:pr-4 focus:ring-2 focus:ring-yellow-500/50 focus:bg-white dark:focus:bg-zinc-800 transition-all outline-none text-xs md:text-base"
@@ -398,8 +483,16 @@ function Header({ user, isSidebarOpen, setIsSidebarOpen, searchQuery, setSearchQ
 
       <div className="flex items-center space-x-1 md:space-x-2 shrink-0">
         <button 
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-full text-zinc-500 transition-colors"
+          title="Toggle theme"
+        >
+          {theme === 'dark' ? <Lightbulb className="h-5 w-5" /> : <Settings className="h-5 w-5" />}
+        </button>
+
+        <button 
           onClick={() => setIsListView(!isListView)}
-          className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-full transition-colors hidden sm:flex"
+          className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-full text-zinc-500 transition-colors hidden sm:flex"
         >
           {isListView ? <Grid className="h-5 w-5" /> : <List className="h-5 w-5" />}
         </button>
@@ -466,6 +559,8 @@ function NoteCreator({ user }: { user: User }) {
   const [tasks, setTasks] = useState<TodoItem[]>([]);
   const [color, setColor] = useState(COLORS[0].value);
   const [dueDate, setDueDate] = useState<string>('');
+  const [labels, setLabels] = useState<string[]>([]);
+  const [labelInput, setLabelInput] = useState('');
   
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -480,7 +575,7 @@ function NoteCreator({ user }: { user: User }) {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        if (title || (content && content !== '<p><br></p>') || tasks.length > 0) {
+        if (title || (content && content !== '<p><br></p>') || tasks.length > 0 || labels.length > 0) {
           handleSave();
         } else {
           setIsExpanded(false);
@@ -489,10 +584,10 @@ function NoteCreator({ user }: { user: User }) {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [title, content, tasks, type, color, dueDate]);
+  }, [title, content, tasks, type, color, dueDate, labels]);
 
   const handleSave = async () => {
-    if (!title && (!content || content === '<p><br></p>') && tasks.length === 0) {
+    if (!title && (!content || content === '<p><br></p>') && tasks.length === 0 && labels.length === 0) {
       setIsExpanded(false);
       return;
     }
@@ -506,6 +601,7 @@ function NoteCreator({ user }: { user: User }) {
         tasks,
         color,
         dueDate: dueDate ? Timestamp.fromDate(new Date(dueDate)) : null,
+        labels,
         isPinned: false,
         isArchived: false,
         isTrashed: false,
@@ -513,7 +609,7 @@ function NoteCreator({ user }: { user: User }) {
         updatedAt: serverTimestamp(),
       });
       setTitle(''); setContent(''); setTasks([]); setType('note'); setColor(COLORS[0].value); 
-      setDueDate('');
+      setDueDate(''); setLabels([]); setLabelInput('');
       setIsExpanded(false);
     } catch (error) {
       console.error('Error adding note:', error);
@@ -532,12 +628,24 @@ function NoteCreator({ user }: { user: User }) {
     setTasks(newTasks);
   };
 
+  const addLabel = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && labelInput.trim()) {
+      e.preventDefault();
+      if (!labels.includes(labelInput.trim())) {
+        setLabels([...labels, labelInput.trim()]);
+      }
+      setLabelInput('');
+    }
+  };
+
+  const removeLabel = (label: string) => setLabels(labels.filter(l => l !== label));
+
   return (
     <div ref={containerRef} className="max-w-2xl mx-auto">
       <motion.div 
         layout
         className={cn(
-          "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg overflow-hidden transition-all",
+          "bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl overflow-hidden transition-all",
           isExpanded ? color : ""
         )}
       >
@@ -566,6 +674,17 @@ function NoteCreator({ user }: { user: User }) {
                 autoFocus
               />
             </div>
+
+            {labels.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {labels.map(label => (
+                  <span key={label} className="inline-flex items-center space-x-1 px-2 py-1 bg-black/5 dark:bg-white/5 rounded-full text-xs font-medium group/label">
+                    <span>{label}</span>
+                    <button onClick={() => removeLabel(label)} className="hover:text-red-500"><X className="h-3 w-3" /></button>
+                  </span>
+                ))}
+              </div>
+            )}
 
             {type === 'todo' ? (
               <div className="space-y-2">
@@ -624,6 +743,19 @@ function NoteCreator({ user }: { user: User }) {
                 <button onClick={() => setType('note')} className={cn("p-2 rounded-full", type === 'note' && "bg-black/5")}><Lightbulb className="h-5 w-5" /></button>
                 <button onClick={() => setType('todo')} className={cn("p-2 rounded-full", type === 'todo' && "bg-black/5")}><CheckSquare className="h-5 w-5" /></button>
                 <button onClick={() => setType('event')} className={cn("p-2 rounded-full", type === 'event' && "bg-black/5")}><CalendarIcon className="h-5 w-5" /></button>
+                <div className="relative group/label-input">
+                  <button className="p-2 rounded-full hover:bg-black/5"><Tag className="h-5 w-5" /></button>
+                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover/label-input:block bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 shadow-xl z-50 w-48">
+                    <input 
+                      type="text"
+                      placeholder="Add label..."
+                      value={labelInput}
+                      onChange={(e) => setLabelInput(e.target.value)}
+                      onKeyDown={addLabel}
+                      className="w-full bg-transparent border-none outline-none text-sm"
+                    />
+                  </div>
+                </div>
               </div>
               <div className="flex items-center space-x-3">
                 <button onClick={() => setIsExpanded(false)} className="px-4 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-800">Cancel</button>
@@ -687,6 +819,7 @@ function NoteGrid({ notes, isListView, onNoteClick }: { notes: Note[], isListVie
 }
 
 function NoteCard({ note, onClick }: { note: Note, onClick: () => void }) {
+  const [isDeleting, setIsDeleting] = useState(false);
   const handleAction = async (e: React.MouseEvent, action: string) => {
     e.stopPropagation();
     try {
@@ -694,8 +827,26 @@ function NoteCard({ note, onClick }: { note: Note, onClick: () => void }) {
       if (action === 'pin') await updateDoc(noteRef, { isPinned: !note.isPinned });
       if (action === 'archive') await updateDoc(noteRef, { isArchived: !note.isArchived });
       if (action === 'trash') await updateDoc(noteRef, { isTrashed: !note.isTrashed });
-      if (action === 'delete') await deleteDoc(noteRef);
+      if (action === 'delete') {
+        await deleteDoc(noteRef);
+        setIsDeleting(false);
+      }
       if (action === 'restore') await updateDoc(noteRef, { isTrashed: false });
+      if (action === 'duplicate') {
+        const { id, ...noteData } = note;
+        await addDoc(collection(db, 'notes'), {
+          ...noteData,
+          title: `${note.title} (Copy)`,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      if (action === 'copy') {
+        const text = note.type === 'todo' 
+          ? note.tasks?.map(t => `${t.completed ? '✓' : '○'} ${t.text}`).join('\n')
+          : note.content.replace(/<[^>]*>/g, '');
+        await navigator.clipboard.writeText(`${note.title}\n\n${text}`);
+      }
     } catch (error) {
       console.error('Action failed:', error);
     }
@@ -706,7 +857,7 @@ function NoteCard({ note, onClick }: { note: Note, onClick: () => void }) {
       layout
       onClick={onClick}
       className={cn(
-        "group relative p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:shadow-xl transition-all cursor-default overflow-hidden",
+        "group relative p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:shadow-2xl transition-all cursor-default overflow-hidden backdrop-blur-sm",
         note.color
       )}
     >
@@ -742,6 +893,16 @@ function NoteCard({ note, onClick }: { note: Note, onClick: () => void }) {
         />
       )}
 
+      {note.labels && note.labels.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-4">
+          {note.labels.map(label => (
+            <span key={label} className="px-2 py-0.5 bg-black/5 dark:bg-white/5 rounded text-[10px] font-medium text-zinc-500">
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2 mb-4">
         {note.dueDate && (
           <div className="inline-flex items-center space-x-1.5 px-2 py-1 bg-black/5 dark:bg-white/5 rounded-full text-[10px] font-bold uppercase tracking-wider">
@@ -749,13 +910,39 @@ function NoteCard({ note, onClick }: { note: Note, onClick: () => void }) {
             <span>{format(note.dueDate.toDate(), 'MMM d')}</span>
           </div>
         )}
+        <div className="inline-flex items-center space-x-1.5 px-2 py-1 text-[10px] font-medium text-zinc-400">
+          <Clock className="h-3 w-3" />
+          <span>{note.updatedAt ? format(note.updatedAt.toDate(), 'MMM d, h:mm a') : 'Just now'}</span>
+        </div>
       </div>
 
       <div className="flex items-center justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        {note.isTrashed ? (
+        {isDeleting ? (
+          <div className="flex items-center bg-red-50 dark:bg-red-900/20 rounded-lg px-2 py-1 animate-in fade-in slide-in-from-right-2">
+            <span className="text-[10px] font-bold text-red-600 dark:text-red-400 mr-2 uppercase">Permanently?</span>
+            <button 
+              onClick={(e) => handleAction(e, 'delete')}
+              className="p-1 hover:bg-red-100 dark:hover:bg-red-900/40 rounded text-red-600"
+              title="Confirm Delete"
+            >
+              <Check className="h-3.5 w-3.5" />
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setIsDeleting(false); }}
+              className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-zinc-500"
+              title="Cancel"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : note.isTrashed ? (
           <>
-            <button onClick={(e) => handleAction(e, 'delete')} className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full text-red-500" title="Delete forever">
-              <Trash2 className="h-4 w-4" />
+            <button 
+              onClick={(e) => { e.stopPropagation(); setIsDeleting(true); }} 
+              className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full text-red-500 transition-colors" 
+              title="Delete permanently"
+            >
+              <Trash className="h-4 w-4" />
             </button>
             <button onClick={(e) => handleAction(e, 'restore')} className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full" title="Restore">
               <X className="h-4 w-4" />
@@ -763,11 +950,32 @@ function NoteCard({ note, onClick }: { note: Note, onClick: () => void }) {
           </>
         ) : (
           <>
+            <button 
+              onClick={(e) => handleAction(e, 'copy')}
+              className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full text-zinc-500"
+              title="Copy to clipboard"
+            >
+              <FileText className="h-4 w-4" />
+            </button>
+            <button 
+              onClick={(e) => handleAction(e, 'duplicate')}
+              className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full text-zinc-500"
+              title="Duplicate"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
             <button onClick={(e) => handleAction(e, 'archive')} className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full" title="Archive">
               <Archive className="h-4 w-4" />
             </button>
-            <button onClick={(e) => handleAction(e, 'trash')} className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full" title="Trash">
+            <button onClick={(e) => handleAction(e, 'trash')} className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full" title="Delete">
               <Trash2 className="h-4 w-4" />
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setIsDeleting(true); }} 
+              className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full text-red-500/50 hover:text-red-500 transition-colors" 
+              title="Delete permanently"
+            >
+              <Trash className="h-4 w-4" />
             </button>
           </>
         )}
@@ -782,6 +990,8 @@ function NoteModal({ note, onClose }: { note: Note, onClose: () => void }) {
   const [tasks, setTasks] = useState<TodoItem[]>(note.tasks || []);
   const [color, setColor] = useState(note.color);
   const [dueDate, setDueDate] = useState(note.dueDate ? format(note.dueDate.toDate(), "yyyy-MM-dd'T'HH:mm") : '');
+  const [labels, setLabels] = useState<string[]>(note.labels || []);
+  const [labelInput, setLabelInput] = useState('');
   
   const quillModules = {
     toolbar: [
@@ -799,6 +1009,7 @@ function NoteModal({ note, onClose }: { note: Note, onClose: () => void }) {
         tasks,
         color,
         dueDate: dueDate ? Timestamp.fromDate(new Date(dueDate)) : null,
+        labels,
         updatedAt: serverTimestamp(),
       });
       onClose();
@@ -820,6 +1031,18 @@ function NoteModal({ note, onClose }: { note: Note, onClose: () => void }) {
   };
   const removeTask = (index: number) => setTasks(tasks.filter((_, i) => i !== index));
 
+  const addLabel = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && labelInput.trim()) {
+      e.preventDefault();
+      if (!labels.includes(labelInput.trim())) {
+        setLabels([...labels, labelInput.trim()]);
+      }
+      setLabelInput('');
+    }
+  };
+
+  const removeLabel = (label: string) => setLabels(labels.filter(l => l !== label));
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div 
@@ -834,7 +1057,7 @@ function NoteModal({ note, onClose }: { note: Note, onClose: () => void }) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
         className={cn(
-          "relative w-full max-w-3xl bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden",
+          "relative w-full max-w-3xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl rounded-3xl shadow-2xl overflow-hidden",
           color
         )}
       >
@@ -848,6 +1071,17 @@ function NoteModal({ note, onClose }: { note: Note, onClose: () => void }) {
               className="w-full bg-transparent border-none text-2xl md:text-3xl font-bold outline-none placeholder:text-zinc-400"
             />
           </div>
+
+          {labels.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {labels.map(label => (
+                <span key={label} className="inline-flex items-center space-x-2 px-3 py-1.5 bg-black/5 dark:bg-white/5 rounded-full text-sm font-medium group/label">
+                  <span>{label}</span>
+                  <button onClick={() => removeLabel(label)} className="hover:text-red-500"><X className="h-4 w-4" /></button>
+                </span>
+              ))}
+            </div>
+          )}
 
           {note.type === 'todo' ? (
             <div className="space-y-3">
@@ -901,6 +1135,19 @@ function NoteModal({ note, onClose }: { note: Note, onClose: () => void }) {
               />
             </div>
             <ColorPicker color={color} onChange={setColor} />
+            <div className="relative group/label-input">
+              <button className="p-2 rounded-full hover:bg-black/5"><Tag className="h-5 w-5" /></button>
+              <div className="absolute bottom-full left-0 mb-2 hidden group-hover/label-input:block bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 shadow-xl z-50 w-48">
+                <input 
+                  type="text"
+                  placeholder="Add label..."
+                  value={labelInput}
+                  onChange={(e) => setLabelInput(e.target.value)}
+                  onKeyDown={addLabel}
+                  className="w-full bg-transparent border-none outline-none text-sm"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center justify-between pt-4">
@@ -924,6 +1171,96 @@ function NoteModal({ note, onClose }: { note: Note, onClose: () => void }) {
           </div>
         </div>
       </motion.div>
+    </div>
+  );
+}
+
+function StatsView({ notes }: { notes: Note[] }) {
+  const stats = useMemo(() => {
+    const total = notes.length;
+    const pinned = notes.filter(n => n.isPinned).length;
+    const archived = notes.filter(n => n.isArchived).length;
+    const trashed = notes.filter(n => n.isTrashed).length;
+    const active = notes.filter(n => !n.isArchived && !n.isTrashed).length;
+    
+    const types = {
+      note: notes.filter(n => n.type === 'note').length,
+      todo: notes.filter(n => n.type === 'todo').length,
+      event: notes.filter(n => n.type === 'event').length,
+    };
+
+    const labelCounts: Record<string, number> = {};
+    notes.forEach(n => {
+      n.labels?.forEach(l => {
+        labelCounts[l] = (labelCounts[l] || 0) + 1;
+      });
+    });
+
+    return { total, pinned, archived, trashed, active, types, labelCounts };
+  }, [notes]);
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Active Notes', value: stats.active, icon: Lightbulb, color: 'text-yellow-500' },
+          { label: 'Pinned', value: stats.pinned, icon: Pin, color: 'text-blue-500' },
+          { label: 'Archived', value: stats.archived, icon: Archive, color: 'text-zinc-500' },
+          { label: 'Trashed', value: stats.trashed, icon: Trash2, color: 'text-red-500' },
+        ].map((item, i) => (
+          <div key={i} className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className={cn("p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800", item.color)}>
+                <item.icon className="h-6 w-6" />
+              </div>
+              <span className="text-3xl font-bold">{item.value}</span>
+            </div>
+            <p className="text-sm font-medium text-zinc-500">{item.label}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+          <h3 className="text-lg font-bold mb-6">Note Types</h3>
+          <div className="space-y-4">
+            {Object.entries(stats.types).map(([type, count]) => (
+              <div key={type} className="space-y-2">
+                <div className="flex justify-between text-sm font-medium">
+                  <span className="capitalize">{type}s</span>
+                  <span>{count}</span>
+                </div>
+                <div className="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(count / stats.total) * 100}%` }}
+                    className="h-full bg-yellow-500"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+          <h3 className="text-lg font-bold mb-6">Top Labels</h3>
+          <div className="flex flex-wrap gap-3">
+            {Object.entries(stats.labelCounts)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 10)
+              .map(([label, count]) => (
+                <div key={label} className="flex items-center space-x-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-xl">
+                  <Tag className="h-4 w-4 text-zinc-500" />
+                  <span className="font-bold">{label}</span>
+                  <span className="text-xs text-zinc-500 bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded-md">{count}</span>
+                </div>
+              ))}
+            {Object.keys(stats.labelCounts).length === 0 && (
+              <p className="text-zinc-500 italic">No labels yet</p>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
