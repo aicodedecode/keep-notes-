@@ -9,8 +9,6 @@ import {
   Menu, 
   Grid, 
   List, 
-  Settings, 
-  Bell, 
   Archive, 
   Trash2, 
   Lightbulb, 
@@ -18,20 +16,12 @@ import {
   Calendar as CalendarIcon, 
   Plus, 
   Pin, 
-  MoreVertical, 
   Palette, 
   X, 
-  Check, 
   ChevronLeft, 
   ChevronRight,
   LogOut,
-  User as UserIcon,
-  BookOpen,
-  Star,
-  History,
-  Tag,
-  FileText,
-  Bookmark
+  History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactQuill from 'react-quill-new';
@@ -71,20 +61,10 @@ import {
 
 // Types
 type NoteType = 'note' | 'todo' | 'event';
-type UPSCView = 'GS1' | 'GS2' | 'GS3' | 'GS4' | 'Optional' | 'Essay' | 'Prelims';
-type AppMode = 'upsc' | 'general';
 
 interface TodoItem {
   text: string;
   completed: boolean;
-}
-
-interface UPSCData {
-  paper?: UPSCView;
-  subject?: string;
-  topic?: string;
-  isImportant?: boolean;
-  lastRevised?: Timestamp | null;
 }
 
 interface Note {
@@ -99,7 +79,6 @@ interface Note {
   type: NoteType;
   tasks?: TodoItem[];
   dueDate?: Timestamp | null;
-  upscData?: UPSCData;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -124,12 +103,11 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
-  const [view, setView] = useState<'notes' | 'calendar' | 'todo' | 'archive' | 'trash' | UPSCView>('notes');
+  const [view, setView] = useState<'notes' | 'calendar' | 'todo' | 'archive' | 'trash'>('notes');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isListView, setIsListView] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
-  const [appMode, setAppMode] = useState<AppMode>('upsc');
 
   // Auth Listener
   useEffect(() => {
@@ -180,9 +158,7 @@ export default function App() {
   const filteredNotes = useMemo(() => {
     return notes.filter(note => {
       const matchesSearch = (note.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
-                           (note.content || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           (note.upscData?.subject || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           (note.upscData?.topic || '').toLowerCase().includes(searchQuery.toLowerCase());
+                           (note.content || '').toLowerCase().includes(searchQuery.toLowerCase());
       
       if (view === 'notes') return !note.isArchived && !note.isTrashed && matchesSearch;
       if (view === 'archive') return note.isArchived && !note.isTrashed && matchesSearch;
@@ -190,11 +166,6 @@ export default function App() {
       if (view === 'todo') return note.type === 'todo' && !note.isTrashed && matchesSearch;
       if (view === 'calendar') return note.dueDate && !note.isTrashed && matchesSearch;
       
-      const upscViews: string[] = ['GS1', 'GS2', 'GS3', 'GS4', 'Optional', 'Essay', 'Prelims'];
-      if (upscViews.includes(view)) {
-        return note.upscData?.paper === view && !note.isTrashed && matchesSearch;
-      }
-
       return matchesSearch;
     });
   }, [notes, view, searchQuery]);
@@ -222,9 +193,9 @@ export default function App() {
           <div className="p-4 bg-yellow-100 dark:bg-yellow-900/30 rounded-2xl">
             <Lightbulb className="h-12 w-12 text-yellow-600 dark:text-yellow-400" />
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">KeepPro UPSC</h1>
+          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">KeepPro</h1>
           <p className="text-zinc-500 dark:text-zinc-400 max-w-sm">
-            Advanced study notes for UPSC aspirants. Syllabus mapping, GS paper categorization, and revision tracking.
+            A premium note-taking experience. Organize your thoughts, tasks, and schedule with ease.
           </p>
           <button 
             onClick={handleLogin}
@@ -260,8 +231,6 @@ export default function App() {
           if (window.innerWidth < 768) setIsSidebarOpen(false);
         }} 
         onClose={() => setIsSidebarOpen(false)}
-        appMode={appMode}
-        setAppMode={setAppMode}
       />
 
       <div className="flex-1 flex flex-col min-w-0 relative">
@@ -274,13 +243,11 @@ export default function App() {
           isListView={isListView}
           setIsListView={setIsListView}
           handleLogout={handleLogout}
-          appMode={appMode}
-          setAppMode={setAppMode}
         />
 
         <main className="flex-1 overflow-y-auto p-3 md:p-8">
           <div className="max-w-6xl mx-auto space-y-6 md:space-y-8">
-            {view === 'notes' && <NoteCreator user={user} appMode={appMode} />}
+            {view === 'notes' && <NoteCreator user={user} />}
             
             <div className="flex items-center justify-between px-1">
               <h2 className="text-xl md:text-2xl font-bold text-zinc-800 dark:text-zinc-200">
@@ -313,21 +280,11 @@ export default function App() {
   );
 }
 
-function Sidebar({ isOpen, view, setView, onClose, appMode, setAppMode }: { isOpen: boolean, view: string, setView: (v: any) => void, onClose: () => void, appMode: AppMode, setAppMode: (m: AppMode) => void }) {
+function Sidebar({ isOpen, view, setView, onClose }: { isOpen: boolean, view: string, setView: (v: any) => void, onClose: () => void }) {
   const mainItems = [
     { id: 'notes', icon: Lightbulb, label: 'Notes' },
     { id: 'todo', icon: CheckSquare, label: 'To-do' },
     { id: 'calendar', icon: CalendarIcon, label: 'Calendar' },
-  ];
-
-  const upscItems = [
-    { id: 'GS1', icon: BookOpen, label: 'GS 1 (History/Geo)' },
-    { id: 'GS2', icon: BookOpen, label: 'GS 2 (Polity/IR)' },
-    { id: 'GS3', icon: BookOpen, label: 'GS 3 (Economy/Sci)' },
-    { id: 'GS4', icon: BookOpen, label: 'GS 4 (Ethics)' },
-    { id: 'Prelims', icon: Star, label: 'Prelims Special' },
-    { id: 'Optional', icon: Tag, label: 'Optional' },
-    { id: 'Essay', icon: History, label: 'Essay' },
   ];
 
   const systemItems = [
@@ -386,7 +343,7 @@ function Sidebar({ isOpen, view, setView, onClose, appMode, setAppMode }: { isOp
         <div className="flex items-center justify-between p-4 md:hidden">
           <div className="flex items-center space-x-2">
             <Lightbulb className="h-8 w-8 text-yellow-500" />
-            <span className="text-xl font-semibold">KeepPro UPSC</span>
+            <span className="text-xl font-semibold">KeepPro</span>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-full">
             <X className="h-5 w-5" />
@@ -394,42 +351,10 @@ function Sidebar({ isOpen, view, setView, onClose, appMode, setAppMode }: { isOp
         </div>
 
         <div className="flex-1 py-4 overflow-y-auto custom-scrollbar">
-          <div className="px-4 mb-6 md:hidden">
-            <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 p-1 rounded-lg border border-zinc-200 dark:border-zinc-800">
-              <button 
-                onClick={() => setAppMode('general')}
-                className={cn(
-                  "flex-1 px-3 py-2 text-xs font-bold rounded-md transition-all",
-                  appMode === 'general' ? "bg-white dark:bg-zinc-800 shadow-sm text-yellow-600" : "text-zinc-500"
-                )}
-              >
-                General
-              </button>
-              <button 
-                onClick={() => setAppMode('upsc')}
-                className={cn(
-                  "flex-1 px-3 py-2 text-xs font-bold rounded-md transition-all",
-                  appMode === 'upsc' ? "bg-white dark:bg-zinc-800 shadow-sm text-yellow-600" : "text-zinc-500"
-                )}
-              >
-                UPSC
-              </button>
-            </div>
-          </div>
-
           <div className="space-y-1">
             {mainItems.map(renderItem)}
           </div>
           
-          {appMode === 'upsc' && (
-            <>
-              {(isOpen || window.innerWidth < 768) && <div className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4">UPSC Papers</div>}
-              <div className="space-y-1">
-                {upscItems.map(renderItem)}
-              </div>
-            </>
-          )}
-
           {(isOpen || window.innerWidth < 768) && <div className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4">System</div>}
           <div className="space-y-1">
             {systemItems.map(renderItem)}
@@ -440,7 +365,7 @@ function Sidebar({ isOpen, view, setView, onClose, appMode, setAppMode }: { isOp
   );
 }
 
-function Header({ user, isSidebarOpen, setIsSidebarOpen, searchQuery, setSearchQuery, isListView, setIsListView, handleLogout, appMode, setAppMode }: any) {
+function Header({ user, isSidebarOpen, setIsSidebarOpen, searchQuery, setSearchQuery, isListView, setIsListView, handleLogout }: any) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   return (
@@ -472,27 +397,6 @@ function Header({ user, isSidebarOpen, setIsSidebarOpen, searchQuery, setSearchQ
       </div>
 
       <div className="flex items-center space-x-1 md:space-x-2 shrink-0">
-        <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 p-1 rounded-lg border border-zinc-200 dark:border-zinc-800 mr-1 md:mr-2">
-          <button 
-            onClick={() => setAppMode('general')}
-            className={cn(
-              "px-2 md:px-3 py-1 text-[10px] md:text-xs font-bold rounded-md transition-all",
-              appMode === 'general' ? "bg-white dark:bg-zinc-800 shadow-sm text-yellow-600" : "text-zinc-500"
-            )}
-          >
-            General
-          </button>
-          <button 
-            onClick={() => setAppMode('upsc')}
-            className={cn(
-              "px-2 md:px-3 py-1 text-[10px] md:text-xs font-bold rounded-md transition-all",
-              appMode === 'upsc' ? "bg-white dark:bg-zinc-800 shadow-sm text-yellow-600" : "text-zinc-500"
-            )}
-          >
-            UPSC
-          </button>
-        </div>
-
         <button 
           onClick={() => setIsListView(!isListView)}
           className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-full transition-colors hidden sm:flex"
@@ -554,7 +458,7 @@ function Header({ user, isSidebarOpen, setIsSidebarOpen, searchQuery, setSearchQ
   );
 }
 
-function NoteCreator({ user, appMode }: { user: User, appMode: AppMode }) {
+function NoteCreator({ user }: { user: User }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -563,12 +467,6 @@ function NoteCreator({ user, appMode }: { user: User, appMode: AppMode }) {
   const [color, setColor] = useState(COLORS[0].value);
   const [dueDate, setDueDate] = useState<string>('');
   
-  // UPSC Fields
-  const [paper, setPaper] = useState<UPSCView | ''>('');
-  const [subject, setSubject] = useState('');
-  const [topic, setTopic] = useState('');
-  const [isImportant, setIsImportant] = useState(false);
-
   const containerRef = useRef<HTMLDivElement>(null);
 
   const quillModules = {
@@ -591,7 +489,7 @@ function NoteCreator({ user, appMode }: { user: User, appMode: AppMode }) {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [title, content, tasks, type, color, dueDate, paper, subject, topic, isImportant]);
+  }, [title, content, tasks, type, color, dueDate]);
 
   const handleSave = async () => {
     if (!title && (!content || content === '<p><br></p>') && tasks.length === 0) {
@@ -608,13 +506,6 @@ function NoteCreator({ user, appMode }: { user: User, appMode: AppMode }) {
         tasks,
         color,
         dueDate: dueDate ? Timestamp.fromDate(new Date(dueDate)) : null,
-        upscData: appMode === 'upsc' ? {
-          paper: paper || null,
-          subject,
-          topic,
-          isImportant,
-          lastRevised: serverTimestamp()
-        } : null,
         isPinned: false,
         isArchived: false,
         isTrashed: false,
@@ -622,7 +513,7 @@ function NoteCreator({ user, appMode }: { user: User, appMode: AppMode }) {
         updatedAt: serverTimestamp(),
       });
       setTitle(''); setContent(''); setTasks([]); setType('note'); setColor(COLORS[0].value); 
-      setDueDate(''); setPaper(''); setSubject(''); setTopic(''); setIsImportant(false);
+      setDueDate('');
       setIsExpanded(false);
     } catch (error) {
       console.error('Error adding note:', error);
@@ -656,7 +547,7 @@ function NoteCreator({ user, appMode }: { user: User, appMode: AppMode }) {
             className="flex items-center justify-between px-4 py-4 cursor-text text-zinc-500"
           >
             <span className="font-medium">
-              {appMode === 'upsc' ? 'Start a UPSC study note...' : 'Take a note...'}
+              Take a note...
             </span>
             <div className="flex items-center space-x-2">
               <button onClick={(e) => { e.stopPropagation(); setIsExpanded(true); setType('todo'); addTask(); }} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full"><CheckSquare className="h-5 w-5" /></button>
@@ -668,54 +559,13 @@ function NoteCreator({ user, appMode }: { user: User, appMode: AppMode }) {
             <div className="flex items-center justify-between">
               <input 
                 type="text"
-                placeholder={appMode === 'upsc' ? "Topic Title (e.g. Morley-Minto Reforms)" : "Title"}
+                placeholder="Title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full bg-transparent border-none text-xl font-bold outline-none placeholder:text-zinc-400"
                 autoFocus
               />
-              {appMode === 'upsc' && (
-                <button 
-                  onClick={() => setIsImportant(!isImportant)}
-                  className={cn("p-2 rounded-full transition-colors", isImportant ? "text-yellow-500 bg-yellow-500/10" : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800")}
-                >
-                  <Star className={cn("h-5 w-5", isImportant && "fill-current")} />
-                </button>
-              )}
             </div>
-
-            {appMode === 'upsc' && (
-              <div className="flex flex-wrap gap-2">
-                <select 
-                  value={paper} 
-                  onChange={(e) => setPaper(e.target.value as any)}
-                  className="bg-zinc-100 dark:bg-zinc-800 border-none rounded-lg px-3 py-1.5 text-xs font-bold outline-none"
-                >
-                  <option value="">Select Paper</option>
-                  <option value="GS1">GS 1</option>
-                  <option value="GS2">GS 2</option>
-                  <option value="GS3">GS 3</option>
-                  <option value="GS4">GS 4</option>
-                  <option value="Prelims">Prelims</option>
-                  <option value="Optional">Optional</option>
-                  <option value="Essay">Essay</option>
-                </select>
-                <input 
-                  type="text"
-                  placeholder="Subject (e.g. Modern History)"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  className="bg-zinc-100 dark:bg-zinc-800 border-none rounded-lg px-3 py-1.5 text-xs outline-none flex-1"
-                />
-                <input 
-                  type="text"
-                  placeholder="Topic (e.g. Constitutional Dev)"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  className="bg-zinc-100 dark:bg-zinc-800 border-none rounded-lg px-3 py-1.5 text-xs outline-none flex-1"
-                />
-              </div>
-            )}
 
             {type === 'todo' ? (
               <div className="space-y-2">
@@ -751,7 +601,7 @@ function NoteCreator({ user, appMode }: { user: User, appMode: AppMode }) {
                   value={content} 
                   onChange={setContent}
                   modules={quillModules}
-                  placeholder={appMode === 'upsc' ? "Detailed study notes, analysis, and key points..." : "Note content..."}
+                  placeholder="Note content..."
                 />
               </div>
             )}
@@ -857,20 +707,11 @@ function NoteCard({ note, onClick }: { note: Note, onClick: () => void }) {
       onClick={onClick}
       className={cn(
         "group relative p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:shadow-xl transition-all cursor-default overflow-hidden",
-        note.color,
-        note.upscData?.isImportant && "ring-2 ring-yellow-500/50"
+        note.color
       )}
     >
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            {note.upscData?.paper && (
-              <span className="px-2 py-0.5 bg-yellow-500 text-white text-[10px] font-black rounded uppercase">
-                {note.upscData.paper}
-              </span>
-            )}
-            {note.upscData?.isImportant && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
-          </div>
           <h4 className="font-bold text-lg leading-tight">{note.title}</h4>
         </div>
         <button 
@@ -883,12 +724,6 @@ function NoteCard({ note, onClick }: { note: Note, onClick: () => void }) {
           <Pin className={cn("h-4 w-4", note.isPinned && "fill-current")} />
         </button>
       </div>
-
-      {note.upscData?.subject && (
-        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">
-          {note.upscData.subject} {note.upscData.topic ? `• ${note.upscData.topic}` : ''}
-        </p>
-      )}
 
       {note.type === 'todo' && note.tasks ? (
         <div className="space-y-1.5 mb-4">
@@ -912,12 +747,6 @@ function NoteCard({ note, onClick }: { note: Note, onClick: () => void }) {
           <div className="inline-flex items-center space-x-1.5 px-2 py-1 bg-black/5 dark:bg-white/5 rounded-full text-[10px] font-bold uppercase tracking-wider">
             <CalendarIcon className="h-3 w-3" />
             <span>{format(note.dueDate.toDate(), 'MMM d')}</span>
-          </div>
-        )}
-        {note.upscData?.lastRevised && (
-          <div className="inline-flex items-center space-x-1.5 px-2 py-1 bg-black/5 dark:bg-white/5 rounded-full text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-            <History className="h-3 w-3" />
-            <span>Rev: {format(note.upscData.lastRevised.toDate(), 'MMM d')}</span>
           </div>
         )}
       </div>
@@ -954,12 +783,6 @@ function NoteModal({ note, onClose }: { note: Note, onClose: () => void }) {
   const [color, setColor] = useState(note.color);
   const [dueDate, setDueDate] = useState(note.dueDate ? format(note.dueDate.toDate(), "yyyy-MM-dd'T'HH:mm") : '');
   
-  // UPSC Fields
-  const [paper, setPaper] = useState<UPSCView | ''>(note.upscData?.paper || '');
-  const [subject, setSubject] = useState(note.upscData?.subject || '');
-  const [topic, setTopic] = useState(note.upscData?.topic || '');
-  const [isImportant, setIsImportant] = useState(note.upscData?.isImportant || false);
-
   const quillModules = {
     toolbar: [
       ['bold', 'italic', 'underline'],
@@ -976,13 +799,6 @@ function NoteModal({ note, onClose }: { note: Note, onClose: () => void }) {
         tasks,
         color,
         dueDate: dueDate ? Timestamp.fromDate(new Date(dueDate)) : null,
-        upscData: note.upscData ? {
-          paper: paper || null,
-          subject,
-          topic,
-          isImportant,
-          lastRevised: serverTimestamp()
-        } : null,
         updatedAt: serverTimestamp(),
       });
       onClose();
@@ -1031,57 +847,7 @@ function NoteModal({ note, onClose }: { note: Note, onClose: () => void }) {
               placeholder="Title"
               className="w-full bg-transparent border-none text-2xl md:text-3xl font-bold outline-none placeholder:text-zinc-400"
             />
-            {note.upscData && (
-              <button 
-                onClick={() => setIsImportant(!isImportant)}
-                className={cn("p-2 rounded-full transition-colors", isImportant ? "text-yellow-500 bg-yellow-500/10" : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800")}
-              >
-                <Star className={cn("h-6 w-6", isImportant && "fill-current")} />
-              </button>
-            )}
           </div>
-
-          {note.upscData && (
-            <div className="flex flex-wrap gap-3">
-              <div className="flex items-center space-x-2 bg-black/5 dark:bg-white/5 px-3 py-1.5 rounded-lg">
-                <BookOpen className="h-4 w-4 text-zinc-500" />
-                <select 
-                  value={paper} 
-                  onChange={(e) => setPaper(e.target.value as any)}
-                  className="bg-transparent border-none text-sm font-bold outline-none"
-                >
-                  <option value="">No Paper</option>
-                  <option value="GS1">GS 1</option>
-                  <option value="GS2">GS 2</option>
-                  <option value="GS3">GS 3</option>
-                  <option value="GS4">GS 4</option>
-                  <option value="Prelims">Prelims</option>
-                  <option value="Optional">Optional</option>
-                  <option value="Essay">Essay</option>
-                </select>
-              </div>
-              <div className="flex items-center space-x-2 bg-black/5 dark:bg-white/5 px-3 py-1.5 rounded-lg flex-1">
-                <Tag className="h-4 w-4 text-zinc-500" />
-                <input 
-                  type="text"
-                  placeholder="Subject"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  className="bg-transparent border-none text-sm outline-none w-full"
-                />
-              </div>
-              <div className="flex items-center space-x-2 bg-black/5 dark:bg-white/5 px-3 py-1.5 rounded-lg flex-1">
-                <Bookmark className="h-4 w-4 text-zinc-500" />
-                <input 
-                  type="text"
-                  placeholder="Topic"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  className="bg-transparent border-none text-sm outline-none w-full"
-                />
-              </div>
-            </div>
-          )}
 
           {note.type === 'todo' ? (
             <div className="space-y-3">
@@ -1135,10 +901,6 @@ function NoteModal({ note, onClose }: { note: Note, onClose: () => void }) {
               />
             </div>
             <ColorPicker color={color} onChange={setColor} />
-            <div className="flex items-center space-x-2 text-xs text-zinc-500">
-              <History className="h-4 w-4" />
-              <span>Last Revised: {note.upscData?.lastRevised ? format(note.upscData.lastRevised.toDate(), 'MMM d, yyyy') : 'Never'}</span>
-            </div>
           </div>
 
           <div className="flex items-center justify-between pt-4">
